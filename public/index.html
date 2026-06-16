@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Win Journal</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">★</span>
+      <div>
+        <h1>Win Journal</h1>
+        <p class="tagline">Track what you accomplish &amp; learn — build the case for your next raise.</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="ai-toggle" id="aiToggle" type="button" aria-pressed="false" disabled
+              title="Use Claude AI for summaries, resume bullets, and suggestions">AI: off</button>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false"
+              aria-label="Switch to dark mode" title="Toggle dark mode">🌙</button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" id="tabbtn-journal" role="tab" aria-selected="true" aria-controls="tab-journal" data-tab="journal">Journal</button>
+    <button class="tab" id="tabbtn-summary" role="tab" aria-selected="false" aria-controls="tab-summary" tabindex="-1" data-tab="summary">Summaries</button>
+    <button class="tab" id="tabbtn-resume" role="tab" aria-selected="false" aria-controls="tab-resume" tabindex="-1" data-tab="resume">Resume bullets</button>
+    <button class="tab" id="tabbtn-export" role="tab" aria-selected="false" aria-controls="tab-export" tabindex="-1" data-tab="export">Export</button>
+  </nav>
+
+  <main>
+    <!-- JOURNAL -->
+    <section id="tab-journal" class="panel active" role="tabpanel" aria-labelledby="tabbtn-journal" tabindex="0">
+      <div class="grid">
+        <div class="card form-card">
+          <h2 id="formTitle">Add an entry</h2>
+          <form id="entryForm">
+            <input type="hidden" id="entryId">
+            <label>Title
+              <input type="text" id="title" placeholder="e.g. Cut deploy time 40% with CI caching" required>
+            </label>
+            <div class="mode-switch" role="group" aria-label="Entry format">
+              <button type="button" class="mode-btn active" data-mode="text" aria-pressed="true">✍️ Free text</button>
+              <button type="button" class="mode-btn" data-mode="template" aria-pressed="false">🗂️ Guided template</button>
+            </div>
+
+            <div id="modeText">
+              <label>What happened / what you learned
+                <textarea id="body" rows="5" placeholder="Describe the win, the impact, and any numbers (%, $, time saved)…"></textarea>
+              </label>
+            </div>
+
+            <div id="modeTemplate" hidden>
+              <p class="hint">Fill in what's relevant — empty sections are skipped.</p>
+              <label>Overview
+                <textarea id="t_overview" rows="2" placeholder="One or two sentences setting the scene."></textarea>
+              </label>
+              <label>What you built / did
+                <textarea id="t_built" rows="3"></textarea>
+              </label>
+              <label>Metrics &amp; impact
+                <textarea id="t_metrics" rows="3" placeholder="Lead with numbers: %, $, time saved, counts…"></textarea>
+              </label>
+              <label>What you learned
+                <textarea id="t_learned" rows="3"></textarea>
+              </label>
+              <label>What you did well
+                <textarea id="t_didWell" rows="2"></textarea>
+              </label>
+              <label>What you could improve
+                <textarea id="t_improve" rows="2"></textarea>
+              </label>
+              <div class="field-with-action">
+                <div class="field-head">
+                  <label for="t_bullet" class="inline-label">Resume / review bullet</label>
+                  <button type="button" class="btn ghost suggest-btn" id="suggestBullet"
+                          aria-label="Suggest an ATS-friendly bullet from the sections above">✨ Suggest</button>
+                </div>
+                <textarea id="t_bullet" rows="2" placeholder="A single, polished, action-verb-first line. Click Suggest to draft one."></textarea>
+              </div>
+            </div>
+            <div class="row">
+              <label>Date
+                <input type="date" id="date">
+              </label>
+              <label>Impact: <span id="impactVal">3</span>/5
+                <input type="range" id="impact" min="1" max="5" value="3">
+              </label>
+            </div>
+            <label>Tags (comma separated)
+              <input type="text" id="tags" placeholder="leadership, automation, customer-impact">
+            </label>
+            <label>Attachments (images, PDFs)
+              <input type="file" id="files" multiple accept="image/*,application/pdf">
+            </label>
+            <div id="attachPreview" class="attach-preview"></div>
+            <div class="form-actions">
+              <button type="submit" class="btn primary" id="saveBtn">Save entry</button>
+              <button type="button" class="btn ghost" id="cancelEdit" hidden>Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card list-card">
+          <div class="list-controls">
+            <input type="search" id="search" placeholder="Search entries…">
+            <select id="periodFilter">
+              <option value="all">All time</option>
+              <option value="day">Today</option>
+              <option value="week">This week</option>
+              <option value="month">This month</option>
+              <option value="year">This year</option>
+            </select>
+          </div>
+          <div id="entryList" class="entry-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SUMMARY -->
+    <section id="tab-summary" class="panel" role="tabpanel" aria-labelledby="tabbtn-summary" tabindex="0" hidden>
+      <div class="card">
+        <h2>Generate a summary</h2>
+        <p class="hint">Surfaces your highest-impact statements for a period. Use it to prep for reviews.</p>
+        <div class="controls">
+          <select id="sumPeriod">
+            <option value="day">Daily</option>
+            <option value="week" selected>Weekly</option>
+            <option value="month">Monthly</option>
+            <option value="year">Yearly</option>
+            <option value="all">All time</option>
+          </select>
+          <select id="sumMode">
+            <option value="offline">Built-in scoring (offline)</option>
+            <option value="ai">Claude AI (smart)</option>
+          </select>
+          <button class="btn primary" id="genSummary">Generate</button>
+          <button class="btn ghost" id="copySummary">Copy</button>
+        </div>
+        <div id="summaryOut" class="markdown-out">Choose a period and click Generate.</div>
+      </div>
+    </section>
+
+    <!-- RESUME -->
+    <section id="tab-resume" class="panel" role="tabpanel" aria-labelledby="tabbtn-resume" tabindex="0" hidden>
+      <div class="card">
+        <h2>Resume bullet points</h2>
+        <p class="hint">Turns your wins into resume-ready bullets, strongest first.</p>
+        <div class="controls">
+          <select id="resPeriod">
+            <option value="year" selected>This year</option>
+            <option value="month">This month</option>
+            <option value="all">All time</option>
+          </select>
+          <select id="resMode">
+            <option value="offline">Built-in (offline)</option>
+            <option value="ai">Claude AI (smart)</option>
+          </select>
+          <button class="btn primary" id="genResume">Generate</button>
+          <button class="btn ghost" id="copyResume">Copy</button>
+        </div>
+        <div id="resumeOut" class="markdown-out">Click Generate to draft bullets.</div>
+      </div>
+    </section>
+
+    <!-- EXPORT -->
+    <section id="tab-export" class="panel" role="tabpanel" aria-labelledby="tabbtn-export" tabindex="0" hidden>
+      <div class="card">
+        <h2>Export your journal</h2>
+        <p class="hint">Download everything for backup or to share. The HTML export prints cleanly to PDF.</p>
+        <div class="controls">
+          <select id="expPeriod">
+            <option value="all" selected>All time</option>
+            <option value="year">This year</option>
+            <option value="month">This month</option>
+          </select>
+        </div>
+        <div class="export-buttons">
+          <button class="btn primary" data-type="json">Download JSON</button>
+          <button class="btn primary" data-type="markdown">Download Markdown</button>
+          <button class="btn primary" data-type="html">Download HTML (print to PDF)</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

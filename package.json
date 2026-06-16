@@ -1,0 +1,10 @@
+{
+  "name": "win-journal",
+  "version": "1.0.0",
+  "description": "A local digital win journal: track accomplishments and learnings, generate impact summaries and resume bullets.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT"
+}

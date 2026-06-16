@@ -1,0 +1,16 @@
+# Secrets / environment
+.env
+.env.local
+
+# Dependencies
+node_modules/
+
+# Local journal data (personal entries + uploaded files).
+# Remove this line if you DO want to track your journal in git.
+data/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+~$*
