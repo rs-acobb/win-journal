@@ -15,30 +15,10 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { URL } = require('url');
+const { loadDotEnv } = require('./env');
 
 const ROOT = __dirname;
-
-// Minimal .env loader (zero-dependency). Reads KEY=VALUE lines from .env into
-// process.env without overriding variables already set in the environment.
-function loadDotEnv() {
-  try {
-    const envPath = path.join(ROOT, '.env');
-    if (!fs.existsSync(envPath)) return;
-    for (const line of fs.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
-      const m = line.match(/^\s*([\w.-]+)\s*=\s*(.*)$/);
-      if (!m) continue; // skips blanks and # comments
-      const key = m[1];
-      let val = m[2].trim();
-      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-        val = val.slice(1, -1);
-      }
-      if (!(key in process.env)) process.env[key] = val;
-    }
-  } catch (err) {
-    console.error('Failed to read .env:', err.message);
-  }
-}
-loadDotEnv();
+loadDotEnv(ROOT);
 
 const PORT = process.env.PORT || 4321;
 const PUBLIC_DIR = path.join(ROOT, 'public');
