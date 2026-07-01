@@ -74,11 +74,55 @@ function createStore(options = {}) {
     return rows.length ? rows[0].data : null;
   }
 
+  async function insertRow(entry) {
+    await pool.query(
+      `INSERT INTO ${table} (id, date, data) VALUES ($1, $2, $3)
+       ON CONFLICT (id) DO NOTHING`,
+      [entry.id, dateOf(entry), JSON.stringify(entry)]
+    );
+  }
+
+  async function addEntry(entry) {
+    await insertRow(entry);
+    await mirrorToDisk();
+    return entry;
+  }
+
+  async function updateEntry(id, entry) {
+    await pool.query(
+      `UPDATE ${table} SET date = $2, data = $3 WHERE id = $1`,
+      [id, dateOf(entry), JSON.stringify(entry)]
+    );
+    await mirrorToDisk();
+    return entry;
+  }
+
+  async function deleteEntry(id) {
+    await pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
+    await mirrorToDisk();
+  }
+
+  async function mirrorToDisk() {
+    if (!mirrorEnabled) return;
+    try {
+      const entries = await getEntries();
+      fs.mkdirSync(dataDir, { recursive: true });
+      const tmp = entriesFile + '.tmp';
+      fs.writeFileSync(tmp, JSON.stringify(entries, null, 2), 'utf8');
+      fs.renameSync(tmp, entriesFile);
+    } catch (err) {
+      console.warn('Could not mirror entries to disk:', err.message);
+    }
+  }
+
   async function close() {
     await pool.end();
   }
 
-  return { init, getEntries, getEntry, close, pool, dateOf };
+  return {
+    init, getEntries, getEntry, addEntry, updateEntry, deleteEntry, close,
+    pool, dateOf,
+  };
 }
 
 module.exports = { createStore, poolConfigFromEnv };
