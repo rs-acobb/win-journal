@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const path = require('node:path');
+const os = require('node:os');
 const { loadDotEnv } = require('../env');
 
 loadDotEnv(path.join(__dirname, '..'));
@@ -12,7 +13,15 @@ const { createStore } = require('../storage');
 const TABLE = 'entries_test';
 
 async function freshStore(opts = {}) {
-  const store = createStore({ tableName: TABLE, mirror: false, ...opts });
+  const store = createStore({
+    tableName: TABLE,
+    mirror: false,
+    // Default to an isolated, nonexistent file so init() never seeds from the
+    // real data/entries.json. seedFromDisk tolerates a missing file (no-op).
+    // Callers that test seeding override entriesFile via ...opts.
+    entriesFile: path.join(os.tmpdir(), 'win-journal-test-noseed', 'entries.json'),
+    ...opts,
+  });
   await store.pool.query(`DROP TABLE IF EXISTS ${TABLE}`);
   await store.init();
   return store;
@@ -106,6 +115,26 @@ test('mirror does not write when disabled', async () => {
   try {
     await store.addEntry({ id: 'n1', date: '2026-06-30', title: 'No mirror' });
     assert.strictEqual(fs.existsSync(entriesFile), false);
+  } finally {
+    await teardown(store);
+  }
+});
+
+test('init seeds from entries.json when table is empty, idempotently', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wj-seed-'));
+  const entriesFile = path.join(tmp, 'entries.json');
+  fs.writeFileSync(entriesFile, JSON.stringify([
+    { id: 'seed1', date: '2026-01-01', title: 'First' },
+    { id: 'seed2', date: '2026-02-01', title: 'Second' },
+  ]));
+  // freshStore drops the table then inits -> should seed 2 rows.
+  const store = await freshStore({ mirror: false, dataDir: tmp, entriesFile });
+  try {
+    assert.strictEqual((await store.getEntries()).length, 2);
+    await store.init(); // table not empty -> must NOT double-seed
+    assert.strictEqual((await store.getEntries()).length, 2);
   } finally {
     await teardown(store);
   }

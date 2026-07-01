@@ -62,6 +62,22 @@ function createStore(options = {}) {
     await pool.query(
       `CREATE INDEX IF NOT EXISTS ${table}_date_idx ON ${table} (date DESC)`
     );
+    const { rows } = await pool.query(`SELECT COUNT(*)::int AS n FROM ${table}`);
+    if (rows[0].n === 0) await seedFromDisk();
+  }
+
+  async function seedFromDisk() {
+    let parsed;
+    try {
+      parsed = JSON.parse(fs.readFileSync(entriesFile, 'utf8'));
+    } catch (err) {
+      return; // no readable file -> nothing to seed
+    }
+    if (!Array.isArray(parsed) || parsed.length === 0) return;
+    for (const entry of parsed) {
+      if (entry && entry.id) await insertRow(entry);
+    }
+    console.log(`Seeded ${parsed.length} entries from ${entriesFile} into "${table}".`);
   }
 
   async function getEntries() {
