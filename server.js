@@ -16,6 +16,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { URL } = require('url');
 const { loadDotEnv } = require('./env');
+const { createStore } = require('./storage');
 
 const ROOT = __dirname;
 loadDotEnv(ROOT);
@@ -25,6 +26,7 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
 const ATTACH_DIR = path.join(DATA_DIR, 'attachments');
 const ENTRIES_FILE = path.join(DATA_DIR, 'entries.json');
+const store = createStore();
 
 const ANTHROPIC_API_KEY = (process.env.ANTHROPIC_API_KEY || '').trim();
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
@@ -36,28 +38,15 @@ const MAX_BODY_BYTES = 25 * 1024 * 1024;
 // Storage helpers
 // ---------------------------------------------------------------------------
 
-function ensureStorage() {
-  fs.mkdirSync(ATTACH_DIR, { recursive: true });
-  if (!fs.existsSync(ENTRIES_FILE)) {
-    fs.writeFileSync(ENTRIES_FILE, '[]', 'utf8');
-  }
-}
-
-function readEntries() {
+// Attachments still live on disk (Phase 1). Guard mkdir so a read-only
+// filesystem (e.g. Vercel) never crashes startup.
+function ensureAttachmentsDir() {
+  if (process.env.VERCEL) return;
   try {
-    const raw = fs.readFileSync(ENTRIES_FILE, 'utf8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    fs.mkdirSync(ATTACH_DIR, { recursive: true });
   } catch (err) {
-    console.error('Failed to read entries.json:', err.message);
-    return [];
+    console.warn('Could not create attachments dir:', err.message);
   }
-}
-
-function writeEntries(entries) {
-  const tmp = ENTRIES_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(entries, null, 2), 'utf8');
-  fs.renameSync(tmp, ENTRIES_FILE);
 }
 
 // ---------------------------------------------------------------------------
@@ -604,7 +593,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (pathname === '/api/entries' && req.method === 'GET') {
-      const list = filterEntries(readEntries(), {
+      const list = filterEntries(await store.getEntries(), {
         from: u.searchParams.get('from') || '',
         to: u.searchParams.get('to') || '',
         q: u.searchParams.get('q') || '',
@@ -615,7 +604,6 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/entries' && req.method === 'POST') {
       const body = await readJSONBody(req);
-      const entries = readEntries();
       const mode = body.mode === 'template' ? 'template' : 'text';
       const sections = mode === 'template' ? sanitizeSections(body.sections) : null;
       const entryBody = mode === 'template'
@@ -633,8 +621,7 @@ const server = http.createServer(async (req, res) => {
         attachments: saveAttachments(body.attachments),
         createdAt: new Date().toISOString(),
       };
-      entries.push(entry);
-      writeEntries(entries);
+      await store.addEntry(entry);
       sendJSON(res, 201, entry);
       return;
     }
@@ -643,10 +630,8 @@ const server = http.createServer(async (req, res) => {
     if (entryMatch && req.method === 'PUT') {
       const id = entryMatch[1];
       const body = await readJSONBody(req);
-      const entries = readEntries();
-      const idx = entries.findIndex((e) => e.id === id);
-      if (idx === -1) { sendJSON(res, 404, { error: 'Not found' }); return; }
-      const existing = entries[idx];
+      const existing = await store.getEntry(id);
+      if (!existing) { sendJSON(res, 404, { error: 'Not found' }); return; }
 
       // Figure out which previously-saved attachments were removed, delete their files.
       const keptFiles = new Set((body.attachments || []).filter((a) => a.file).map((a) => a.file));
@@ -665,7 +650,7 @@ const server = http.createServer(async (req, res) => {
         sections = null;
         entryBody = (body.body != null ? body.body : existing.body).trim();
       }
-      entries[idx] = {
+      const updated = {
         ...existing,
         date: (body.date || existing.date).slice(0, 10),
         title: (body.title != null ? body.title : existing.title).trim(),
@@ -677,19 +662,17 @@ const server = http.createServer(async (req, res) => {
         attachments: saveAttachments(body.attachments),
         updatedAt: new Date().toISOString(),
       };
-      writeEntries(entries);
-      sendJSON(res, 200, entries[idx]);
+      await store.updateEntry(id, updated);
+      sendJSON(res, 200, updated);
       return;
     }
 
     if (entryMatch && req.method === 'DELETE') {
       const id = entryMatch[1];
-      const entries = readEntries();
-      const idx = entries.findIndex((e) => e.id === id);
-      if (idx === -1) { sendJSON(res, 404, { error: 'Not found' }); return; }
-      deleteAttachmentFiles(entries[idx].attachments);
-      entries.splice(idx, 1);
-      writeEntries(entries);
+      const existing = await store.getEntry(id);
+      if (!existing) { sendJSON(res, 404, { error: 'Not found' }); return; }
+      deleteAttachmentFiles(existing.attachments);
+      await store.deleteEntry(id);
       sendJSON(res, 200, { ok: true });
       return;
     }
@@ -707,7 +690,7 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/summary' && req.method === 'POST') {
       const body = await readJSONBody(req);
-      const list = filterEntries(readEntries(), { from: body.from || '', to: body.to || '' });
+      const list = filterEntries(await store.getEntries(), { from: body.from || '', to: body.to || '' });
       const label = periodLabel(body.period, body.from, body.to);
       if (body.mode === 'ai') {
         if (!ANTHROPIC_API_KEY) { sendJSON(res, 400, { error: 'No ANTHROPIC_API_KEY set on the server.' }); return; }
@@ -722,7 +705,7 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/resume' && req.method === 'POST') {
       const body = await readJSONBody(req);
-      const list = filterEntries(readEntries(), { from: body.from || '', to: body.to || '' });
+      const list = filterEntries(await store.getEntries(), { from: body.from || '', to: body.to || '' });
       if (body.mode === 'ai') {
         if (!ANTHROPIC_API_KEY) { sendJSON(res, 400, { error: 'No ANTHROPIC_API_KEY set on the server.' }); return; }
         if (list.length === 0) { sendJSON(res, 200, { markdown: '_No entries to draw from yet._', mode: 'ai' }); return; }
@@ -757,12 +740,12 @@ const server = http.createServer(async (req, res) => {
       let baseName = 'win-journal';
       if (id) {
         // Single-entry export.
-        const entry = readEntries().find((e) => e.id === id);
+        const entry = await store.getEntry(id);
         if (!entry) { sendJSON(res, 404, { error: 'Not found' }); return; }
         list = [entry];
         baseName = 'win-' + slugify(entry.title || entry.id);
       } else {
-        list = filterEntries(readEntries(), {
+        list = filterEntries(await store.getEntries(), {
           from: u.searchParams.get('from') || '',
           to: u.searchParams.get('to') || '',
         });
@@ -808,9 +791,17 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-ensureStorage();
-server.listen(PORT, () => {
-  console.log(`\n  Win Journal running at  http://localhost:${PORT}`);
-  console.log(`  Data stored in          ${DATA_DIR}`);
-  console.log(`  AI summaries            ${ANTHROPIC_API_KEY ? 'ON (' + ANTHROPIC_MODEL + ')' : 'OFF (set ANTHROPIC_API_KEY to enable)'}\n`);
-});
+store.init()
+  .then(() => {
+    ensureAttachmentsDir();
+    server.listen(PORT, () => {
+      console.log(`\n  Win Journal running at  http://localhost:${PORT}`);
+      console.log(`  Entries stored in       PostgreSQL (${process.env.DATABASE_NAME || 'postgres'} @ ${process.env.DATABASE_HOST || 'localhost'})`);
+      console.log(`  Local backup mirror     ${process.env.VERCEL ? 'OFF (read-only FS)' : ENTRIES_FILE}`);
+      console.log(`  AI summaries            ${ANTHROPIC_API_KEY ? 'ON (' + ANTHROPIC_MODEL + ')' : 'OFF (set ANTHROPIC_API_KEY to enable)'}\n`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to initialize storage:', err.message);
+    process.exit(1);
+  });
