@@ -89,14 +89,17 @@ tabButtons.forEach((btn, i) => {
 
 // --- theme (system default, with a persisted toggle) ---
 const themeToggle = $('#themeToggle');
-function applyTheme(theme) {
-  // theme: 'light' | 'dark' | null (follow system)
-  if (theme) document.documentElement.setAttribute('data-theme', theme);
-  else document.documentElement.removeAttribute('data-theme');
-  const isDark = theme
-    ? theme === 'dark'
-    : window.matchMedia('(prefers-color-scheme: dark)').matches;
-  themeToggle.textContent = isDark ? '☀️' : '🌙';
+function resolveTheme(pref) {
+  // pref: 'light' | 'dark' | null (follow system)
+  if (pref === 'light' || pref === 'dark') return pref;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+function applyTheme(pref) {
+  const effective = resolveTheme(pref);
+  // Always set an explicit theme so cvd/contrast override blocks key off it reliably.
+  document.documentElement.setAttribute('data-theme', effective);
+  const isDark = effective === 'dark';
+  themeToggle.textContent = isDark ? '☀️ Light' : '🌙 Dark';
   themeToggle.setAttribute('aria-pressed', String(isDark));
   themeToggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
 }
@@ -113,6 +116,64 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
   if (!localStorage.getItem('wj-theme')) applyTheme(null);
 });
 applyTheme(localStorage.getItem('wj-theme'));
+
+// --- accessibility toggles: high contrast + colorblind-safe ---
+const contrastToggle = $('#contrastToggle');
+const cvdToggle = $('#cvdToggle');
+function applyContrast(on) {
+  if (on) document.documentElement.setAttribute('data-contrast', 'high');
+  else document.documentElement.removeAttribute('data-contrast');
+  contrastToggle.setAttribute('aria-pressed', String(on));
+  localStorage.setItem('wj-contrast', on ? 'high' : '');
+}
+function applyCvd(on) {
+  if (on) document.documentElement.setAttribute('data-cvd', 'safe');
+  else document.documentElement.removeAttribute('data-cvd');
+  cvdToggle.setAttribute('aria-pressed', String(on));
+  localStorage.setItem('wj-cvd', on ? 'safe' : '');
+}
+contrastToggle.addEventListener('click', () => {
+  const on = contrastToggle.getAttribute('aria-pressed') !== 'true';
+  applyContrast(on); toast(on ? 'High contrast on' : 'High contrast off');
+});
+cvdToggle.addEventListener('click', () => {
+  const on = cvdToggle.getAttribute('aria-pressed') !== 'true';
+  applyCvd(on); toast(on ? 'Colorblind-safe palette on' : 'Colorblind-safe off');
+});
+applyContrast(localStorage.getItem('wj-contrast') === 'high');
+applyCvd(localStorage.getItem('wj-cvd') === 'safe');
+
+// --- display popover ---
+const displayBtn = $('#displayBtn');
+const displayPanel = $('#displayPanel');
+function panelItems() { return Array.from(displayPanel.querySelectorAll('button')); }
+function openPanel() {
+  displayPanel.hidden = false;
+  displayBtn.setAttribute('aria-expanded', 'true');
+  const first = panelItems()[0]; if (first) first.focus();
+  document.addEventListener('keydown', onPanelKey, true);
+  document.addEventListener('click', onOutside, true);
+}
+function closePanel(returnFocus) {
+  displayPanel.hidden = true;
+  displayBtn.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('keydown', onPanelKey, true);
+  document.removeEventListener('click', onOutside, true);
+  if (returnFocus) displayBtn.focus();
+}
+function onPanelKey(e) {
+  if (e.key === 'Escape') { e.preventDefault(); closePanel(true); return; }
+  if (e.key === 'Tab') {
+    const items = panelItems(); if (!items.length) return;
+    const i = items.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); items[items.length - 1].focus(); }
+    else if (!e.shiftKey && i === items.length - 1) { e.preventDefault(); items[0].focus(); }
+  }
+}
+function onOutside(e) {
+  if (!displayPanel.contains(e.target) && !displayBtn.contains(e.target)) closePanel(false);
+}
+displayBtn.addEventListener('click', () => (displayPanel.hidden ? openPanel() : closePanel(true)));
 
 // --- impact slider ---
 $('#impact').addEventListener('input', (e) => { $('#impactVal').textContent = e.target.value; });
@@ -273,17 +334,33 @@ function attachmentHTML(att) {
   return `<a href="${url}" target="_blank">📄 ${att.name}</a>`;
 }
 
+const PAGE_SIZE = 1;
+let currentEntries = [];
+let currentPage = 1;
+
 function renderEntries(entries) {
+  currentEntries = entries;
+  currentPage = 1;
+  renderPage();
+}
+
+function renderPage() {
   const list = $('#entryList');
+  const entries = currentEntries;
   if (!entries.length) {
     list.innerHTML = '<div class="empty">No entries yet. Log your first win on the left →</div>';
+    renderPagination(1);
     return;
   }
+  const pages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  if (currentPage > pages) currentPage = pages;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageEntries = entries.slice(start, start + PAGE_SIZE);
   list.innerHTML = '';
-  for (const e of entries) {
+  for (const e of pageEntries) {
     const div = document.createElement('div');
     div.className = 'entry';
-    const tags = (e.tags || []).map((t) => `<span class="tag">${t}</span>`).join('');
+    const tags = (e.tags || []).map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join('');
     const atts = (e.attachments || []).map(attachmentHTML).join('');
     div.innerHTML = `
       <div class="entry-head">
@@ -307,7 +384,7 @@ function renderEntries(entries) {
       </div>`;
     list.appendChild(div);
   }
-  $$('[data-edit]').forEach((b) => b.addEventListener('click', () => editEntry(b.dataset.edit, entries)));
+  $$('[data-edit]').forEach((b) => b.addEventListener('click', () => editEntry(b.dataset.edit, currentEntries)));
   $$('[data-del]').forEach((b) => b.addEventListener('click', () => deleteEntry(b.dataset.del)));
   $$('[data-exp-toggle]').forEach((b) => b.addEventListener('click', (ev) => {
     ev.stopPropagation();
@@ -318,6 +395,29 @@ function renderEntries(entries) {
     menu.hidden = !willOpen;
     b.setAttribute('aria-expanded', String(willOpen));
   }));
+  renderPagination(pages);
+}
+
+function renderPagination(pages) {
+  const bar = $('#pagination');
+  if (!bar) return;
+  if (pages <= 1) { bar.hidden = true; bar.innerHTML = ''; return; }
+  bar.hidden = false;
+  bar.innerHTML = `
+    <button class="btn ghost" id="prevPage" aria-label="Previous page"${currentPage <= 1 ? ' disabled' : ''}>← Prev</button>
+    <span class="page-status" aria-live="polite">Page ${currentPage} of ${pages} · ${currentEntries.length} entries</span>
+    <button class="btn ghost" id="nextPage" aria-label="Next page"${currentPage >= pages ? ' disabled' : ''}>Next →</button>`;
+  $('#prevPage').addEventListener('click', () => goToPage(currentPage - 1));
+  $('#nextPage').addEventListener('click', () => goToPage(currentPage + 1));
+}
+
+function goToPage(p) {
+  const pages = Math.max(1, Math.ceil(currentEntries.length / PAGE_SIZE));
+  currentPage = Math.min(Math.max(1, p), pages);
+  renderPage();
+  const next = document.getElementById('nextPage'), prev = document.getElementById('prevPage');
+  if (next && !next.disabled) next.focus();
+  else if (prev && !prev.disabled) prev.focus();
 }
 
 function closeExportMenus() {

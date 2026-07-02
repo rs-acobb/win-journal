@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <canvas id="starfield" aria-hidden="true"></canvas>
+  <div id="nebula" aria-hidden="true"></div>
   <header class="topbar">
     <div class="brand">
       <span class="logo" aria-hidden="true">★</span>
@@ -14,12 +16,25 @@
         <h1>Win Journal</h1>
         <p class="tagline">Track what you accomplish &amp; learn — build the case for your next raise.</p>
       </div>
+      <div class="equalizer" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
     </div>
     <div class="topbar-actions">
       <button class="ai-toggle" id="aiToggle" type="button" aria-pressed="false" disabled
               title="Use Claude AI for summaries, resume bullets, and suggestions">AI: off</button>
-      <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false"
-              aria-label="Switch to dark mode" title="Toggle dark mode">🌙</button>
+      <div class="display-menu">
+        <button class="display-btn" id="displayBtn" type="button"
+                aria-expanded="false" aria-controls="displayPanel">⚙ Display</button>
+        <div class="display-panel" id="displayPanel" role="group" aria-label="Display settings" hidden>
+          <button class="theme-toggle" id="themeToggle" type="button"
+                  aria-pressed="false" aria-label="Switch to dark mode">🌙 Dark</button>
+          <button class="display-item" id="contrastToggle" type="button"
+                  aria-pressed="false">High contrast</button>
+          <button class="display-item" id="cvdToggle" type="button"
+                  aria-pressed="false">Colorblind-safe</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -114,6 +129,7 @@
               <option value="year">This year</option>
             </select>
           </div>
+          <div id="pagination" class="pagination" hidden></div>
           <div id="entryList" class="entry-list"></div>
         </div>
       </div>
@@ -188,5 +204,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="/app.js"></script>
+  <script src="/starfield.js"></script>
 </body>
 </html>
