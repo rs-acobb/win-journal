@@ -334,17 +334,33 @@ function attachmentHTML(att) {
   return `<a href="${url}" target="_blank">📄 ${att.name}</a>`;
 }
 
+const PAGE_SIZE = 8;
+let currentEntries = [];
+let currentPage = 1;
+
 function renderEntries(entries) {
+  currentEntries = entries;
+  currentPage = 1;
+  renderPage();
+}
+
+function renderPage() {
   const list = $('#entryList');
+  const entries = currentEntries;
   if (!entries.length) {
     list.innerHTML = '<div class="empty">No entries yet. Log your first win on the left →</div>';
+    renderPagination(1);
     return;
   }
+  const pages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  if (currentPage > pages) currentPage = pages;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageEntries = entries.slice(start, start + PAGE_SIZE);
   list.innerHTML = '';
-  for (const e of entries) {
+  for (const e of pageEntries) {
     const div = document.createElement('div');
     div.className = 'entry';
-    const tags = (e.tags || []).map((t) => `<span class="tag">${t}</span>`).join('');
+    const tags = (e.tags || []).map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join('');
     const atts = (e.attachments || []).map(attachmentHTML).join('');
     div.innerHTML = `
       <div class="entry-head">
@@ -368,7 +384,7 @@ function renderEntries(entries) {
       </div>`;
     list.appendChild(div);
   }
-  $$('[data-edit]').forEach((b) => b.addEventListener('click', () => editEntry(b.dataset.edit, entries)));
+  $$('[data-edit]').forEach((b) => b.addEventListener('click', () => editEntry(b.dataset.edit, currentEntries)));
   $$('[data-del]').forEach((b) => b.addEventListener('click', () => deleteEntry(b.dataset.del)));
   $$('[data-exp-toggle]').forEach((b) => b.addEventListener('click', (ev) => {
     ev.stopPropagation();
@@ -379,6 +395,29 @@ function renderEntries(entries) {
     menu.hidden = !willOpen;
     b.setAttribute('aria-expanded', String(willOpen));
   }));
+  renderPagination(pages);
+}
+
+function renderPagination(pages) {
+  const bar = $('#pagination');
+  if (!bar) return;
+  if (pages <= 1) { bar.hidden = true; bar.innerHTML = ''; return; }
+  bar.hidden = false;
+  bar.innerHTML = `
+    <button class="btn ghost" id="prevPage" aria-label="Previous page"${currentPage <= 1 ? ' disabled' : ''}>← Prev</button>
+    <span class="page-status" aria-live="polite">Page ${currentPage} of ${pages} · ${currentEntries.length} entries</span>
+    <button class="btn ghost" id="nextPage" aria-label="Next page"${currentPage >= pages ? ' disabled' : ''}>Next →</button>`;
+  $('#prevPage').addEventListener('click', () => goToPage(currentPage - 1));
+  $('#nextPage').addEventListener('click', () => goToPage(currentPage + 1));
+}
+
+function goToPage(p) {
+  const pages = Math.max(1, Math.ceil(currentEntries.length / PAGE_SIZE));
+  currentPage = Math.min(Math.max(1, p), pages);
+  renderPage();
+  const next = document.getElementById('nextPage'), prev = document.getElementById('prevPage');
+  if (next && !next.disabled) next.focus();
+  else if (prev && !prev.disabled) prev.focus();
 }
 
 function closeExportMenus() {
