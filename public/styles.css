@@ -452,6 +452,6 @@ input[type=range] { width: 100%; margin-top: 8px; accent-color: var(--accent); }
 }
 
 /* entry pagination */
-.pagination { display:flex; align-items:center; justify-content:center; gap:14px; margin-top:16px; }
+.pagination { display:flex; align-items:center; justify-content:center; gap:14px; margin:0 0 16px; }
 .pagination .page-status { color: var(--muted); font-size:13px; }
 .pagination button[disabled] { opacity:.45; cursor:default; }
