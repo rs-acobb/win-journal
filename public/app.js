@@ -334,7 +334,7 @@ function attachmentHTML(att) {
   return `<a href="${url}" target="_blank">📄 ${att.name}</a>`;
 }
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 1;
 let currentEntries = [];
 let currentPage = 1;
 
