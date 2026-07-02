@@ -123,21 +123,21 @@ const cvdToggle = $('#cvdToggle');
 function applyContrast(on) {
   if (on) document.documentElement.setAttribute('data-contrast', 'high');
   else document.documentElement.removeAttribute('data-contrast');
-  contrastToggle.setAttribute('aria-checked', String(on));
+  contrastToggle.setAttribute('aria-pressed', String(on));
   localStorage.setItem('wj-contrast', on ? 'high' : '');
 }
 function applyCvd(on) {
   if (on) document.documentElement.setAttribute('data-cvd', 'safe');
   else document.documentElement.removeAttribute('data-cvd');
-  cvdToggle.setAttribute('aria-checked', String(on));
+  cvdToggle.setAttribute('aria-pressed', String(on));
   localStorage.setItem('wj-cvd', on ? 'safe' : '');
 }
 contrastToggle.addEventListener('click', () => {
-  const on = contrastToggle.getAttribute('aria-checked') !== 'true';
+  const on = contrastToggle.getAttribute('aria-pressed') !== 'true';
   applyContrast(on); toast(on ? 'High contrast on' : 'High contrast off');
 });
 cvdToggle.addEventListener('click', () => {
-  const on = cvdToggle.getAttribute('aria-checked') !== 'true';
+  const on = cvdToggle.getAttribute('aria-pressed') !== 'true';
   applyCvd(on); toast(on ? 'Colorblind-safe palette on' : 'Colorblind-safe off');
 });
 applyContrast(localStorage.getItem('wj-contrast') === 'high');
