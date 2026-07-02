@@ -239,6 +239,7 @@ body {
 /* --- tabs --- */
 .tabs {
   display: flex;
+  justify-content: center;
   gap: 4px;
   padding: 0 24px;
   background: var(--glass-bg);
