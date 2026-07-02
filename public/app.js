@@ -117,6 +117,64 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 });
 applyTheme(localStorage.getItem('wj-theme'));
 
+// --- accessibility toggles: high contrast + colorblind-safe ---
+const contrastToggle = $('#contrastToggle');
+const cvdToggle = $('#cvdToggle');
+function applyContrast(on) {
+  if (on) document.documentElement.setAttribute('data-contrast', 'high');
+  else document.documentElement.removeAttribute('data-contrast');
+  contrastToggle.setAttribute('aria-checked', String(on));
+  localStorage.setItem('wj-contrast', on ? 'high' : '');
+}
+function applyCvd(on) {
+  if (on) document.documentElement.setAttribute('data-cvd', 'safe');
+  else document.documentElement.removeAttribute('data-cvd');
+  cvdToggle.setAttribute('aria-checked', String(on));
+  localStorage.setItem('wj-cvd', on ? 'safe' : '');
+}
+contrastToggle.addEventListener('click', () => {
+  const on = contrastToggle.getAttribute('aria-checked') !== 'true';
+  applyContrast(on); toast(on ? 'High contrast on' : 'High contrast off');
+});
+cvdToggle.addEventListener('click', () => {
+  const on = cvdToggle.getAttribute('aria-checked') !== 'true';
+  applyCvd(on); toast(on ? 'Colorblind-safe palette on' : 'Colorblind-safe off');
+});
+applyContrast(localStorage.getItem('wj-contrast') === 'high');
+applyCvd(localStorage.getItem('wj-cvd') === 'safe');
+
+// --- display popover ---
+const displayBtn = $('#displayBtn');
+const displayPanel = $('#displayPanel');
+function panelItems() { return Array.from(displayPanel.querySelectorAll('button')); }
+function openPanel() {
+  displayPanel.hidden = false;
+  displayBtn.setAttribute('aria-expanded', 'true');
+  const first = panelItems()[0]; if (first) first.focus();
+  document.addEventListener('keydown', onPanelKey, true);
+  document.addEventListener('click', onOutside, true);
+}
+function closePanel(returnFocus) {
+  displayPanel.hidden = true;
+  displayBtn.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('keydown', onPanelKey, true);
+  document.removeEventListener('click', onOutside, true);
+  if (returnFocus) displayBtn.focus();
+}
+function onPanelKey(e) {
+  if (e.key === 'Escape') { e.preventDefault(); closePanel(true); return; }
+  if (e.key === 'Tab') {
+    const items = panelItems(); if (!items.length) return;
+    const i = items.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); items[items.length - 1].focus(); }
+    else if (!e.shiftKey && i === items.length - 1) { e.preventDefault(); items[0].focus(); }
+  }
+}
+function onOutside(e) {
+  if (!displayPanel.contains(e.target) && !displayBtn.contains(e.target)) closePanel(false);
+}
+displayBtn.addEventListener('click', () => (displayPanel.hidden ? openPanel() : closePanel(true)));
+
 // --- impact slider ---
 $('#impact').addEventListener('input', (e) => { $('#impactVal').textContent = e.target.value; });
 

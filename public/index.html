@@ -23,8 +23,18 @@
     <div class="topbar-actions">
       <button class="ai-toggle" id="aiToggle" type="button" aria-pressed="false" disabled
               title="Use Claude AI for summaries, resume bullets, and suggestions">AI: off</button>
-      <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false"
-              aria-label="Switch to dark mode" title="Toggle dark mode">🌙</button>
+      <div class="display-menu">
+        <button class="display-btn" id="displayBtn" type="button"
+                aria-haspopup="true" aria-expanded="false" aria-controls="displayPanel">⚙ Display</button>
+        <div class="display-panel" id="displayPanel" role="menu" aria-label="Display settings" hidden>
+          <button class="theme-toggle" id="themeToggle" type="button" role="menuitem"
+                  aria-pressed="false" aria-label="Switch to dark mode">🌙 Dark</button>
+          <button class="display-item" id="contrastToggle" type="button" role="menuitemcheckbox"
+                  aria-checked="false">High contrast</button>
+          <button class="display-item" id="cvdToggle" type="button" role="menuitemcheckbox"
+                  aria-checked="false">Colorblind-safe</button>
+        </div>
+      </div>
     </div>
   </header>
 

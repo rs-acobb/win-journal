@@ -419,3 +419,25 @@ input[type=range] { width: 100%; margin-top: 8px; accent-color: var(--accent); }
 .equalizer span:nth-child(7){ animation-delay:-.5s }
 @keyframes eq { 0%,100%{ transform: scaleY(.35) } 50%{ transform: scaleY(1) } }
 :root[data-contrast="high"] .equalizer { display:none; }
+
+/* --- display popover --- */
+.display-menu { position: relative; }
+.display-btn {
+  background: rgba(255,255,255,0.18); color:#fff; border:1px solid transparent;
+  padding:7px 14px; border-radius:999px; font-size:13px; font-weight:600; cursor:pointer;
+  transition: background .2s ease, transform .15s ease;
+}
+.display-btn:hover { background: rgba(255,255,255,0.32); transform: translateY(-1px); }
+.display-panel {
+  position:absolute; right:0; top:100%; margin-top:8px; z-index:30;
+  background: var(--bg-elev); color: var(--ink);
+  border:1px solid var(--line); border-radius:12px; box-shadow: var(--shadow);
+  min-width:200px; padding:8px; display:flex; flex-direction:column; gap:4px;
+}
+.display-panel .theme-toggle,
+.display-item {
+  display:block; width:100%; height:auto; text-align:left; background:none; border:1px solid transparent;
+  color: var(--ink); padding:9px 12px; border-radius:8px; font-size:14px; cursor:pointer;
+}
+.display-item[aria-checked="true"]::after { content:" ✓"; color: var(--accent); font-weight:700; }
+.display-panel button:hover { background: var(--accent-soft); color: var(--accent-on-soft); }
