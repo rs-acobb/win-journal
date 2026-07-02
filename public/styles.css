@@ -68,6 +68,77 @@
   --grad-b: #6d28d9;
 }
 
+/* ===== Galaxy theme token layers (design spec 2026-07-02) ===== */
+/* Aurora Dawn additions (light base) */
+:root {
+  --space-0: #eef1fb;
+  --glass-bg: rgba(255,255,255,0.74);
+  --glass-border: rgba(79,70,229,0.18);
+  --glow: 0 0 20px rgba(124,58,237,0.18);
+  --nebula-a: rgba(150,130,255,0.20);
+  --nebula-b: rgba(120,200,220,0.18);
+  --nebula-c: rgba(210,150,230,0.16);
+  --nebula-opacity: 1;
+  --starfield-display: none;
+}
+/* Nebula Night additions (dark) — mirror the base dark structure */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --space-0: #05060d;
+    --glass-bg: rgba(18,20,34,0.72);
+    --glass-border: rgba(140,150,255,0.22);
+    --glow: 0 0 24px rgba(129,140,248,0.35);
+    --star-a: rgba(255,255,255,0.90);
+    --star-b: rgba(190,200,255,0.80);
+    --star-c: rgba(150,220,255,0.70);
+    --nebula-a: rgba(88,60,180,0.35);
+    --nebula-b: rgba(30,90,160,0.30);
+    --nebula-c: rgba(140,50,150,0.25);
+    --nebula-opacity: 1;
+    --starfield-display: block;
+  }
+}
+:root[data-theme="dark"] {
+  --space-0: #05060d;
+  --glass-bg: rgba(18,20,34,0.72);
+  --glass-border: rgba(140,150,255,0.22);
+  --glow: 0 0 24px rgba(129,140,248,0.35);
+  --star-a: rgba(255,255,255,0.90);
+  --star-b: rgba(190,200,255,0.80);
+  --star-c: rgba(150,220,255,0.70);
+  --nebula-a: rgba(88,60,180,0.35);
+  --nebula-b: rgba(30,90,160,0.30);
+  --nebula-c: rgba(140,50,150,0.25);
+  --nebula-opacity: 1;
+  --starfield-display: block;
+}
+/* Colorblind-safe (Okabe-Ito blue accent) */
+:root[data-theme="light"][data-cvd="safe"] {
+  --accent:#0072B2; --accent-hover:#005a8c; --accent-contrast:#ffffff;
+  --accent-soft:#d6ebf7; --accent-on-soft:#004e79; --ring:rgba(0,114,178,.55);
+  --grad-a:#0072B2; --grad-b:#005a8c;
+}
+:root[data-theme="dark"][data-cvd="safe"] {
+  --accent:#56B4E9; --accent-hover:#7fc7ef; --accent-contrast:#05060d;
+  --accent-soft:#10314a; --accent-on-soft:#9bd3f2; --ring:rgba(86,180,233,.60);
+  --grad-a:#0072B2; --grad-b:#005a8c;
+}
+/* High contrast (AAA, decoration off) — authored last so it wins over cvd */
+:root[data-theme="light"][data-contrast="high"] {
+  --bg:#fff; --bg-elev:#fff; --bg-inset:#fff; --space-0:#fff; --glass-bg:#fff;
+  --ink:#000; --muted:#1a1a1a; --line:#000; --glass-border:#000;
+  --accent:#0000cc; --accent-contrast:#fff; --accent-hover:#0000a0;
+  --accent-soft:#e6e6ff; --accent-on-soft:#0000a0; --ring:#0000cc;
+  --grad-a:#fff; --grad-b:#fff; --glow:none; --nebula-opacity:0; --starfield-display:none;
+}
+:root[data-theme="dark"][data-contrast="high"] {
+  --bg:#000; --bg-elev:#000; --bg-inset:#000; --space-0:#000; --glass-bg:#000;
+  --ink:#fff; --muted:#e6e6e6; --line:#fff; --glass-border:#fff;
+  --accent:#ffd400; --accent-contrast:#000; --accent-hover:#ffe34d;
+  --accent-soft:#1a1a00; --accent-on-soft:#ffd400; --ring:#fff;
+  --grad-a:#000; --grad-b:#000; --glow:none; --nebula-opacity:0; --starfield-display:none;
+}
+
 * { box-sizing: border-box; }
 
 html { color-scheme: light dark; }

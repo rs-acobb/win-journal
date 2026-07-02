@@ -89,14 +89,17 @@ tabButtons.forEach((btn, i) => {
 
 // --- theme (system default, with a persisted toggle) ---
 const themeToggle = $('#themeToggle');
-function applyTheme(theme) {
-  // theme: 'light' | 'dark' | null (follow system)
-  if (theme) document.documentElement.setAttribute('data-theme', theme);
-  else document.documentElement.removeAttribute('data-theme');
-  const isDark = theme
-    ? theme === 'dark'
-    : window.matchMedia('(prefers-color-scheme: dark)').matches;
-  themeToggle.textContent = isDark ? '☀️' : '🌙';
+function resolveTheme(pref) {
+  // pref: 'light' | 'dark' | null (follow system)
+  if (pref === 'light' || pref === 'dark') return pref;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+function applyTheme(pref) {
+  const effective = resolveTheme(pref);
+  // Always set an explicit theme so cvd/contrast override blocks key off it reliably.
+  document.documentElement.setAttribute('data-theme', effective);
+  const isDark = effective === 'dark';
+  themeToggle.textContent = isDark ? '☀️ Light' : '🌙 Dark';
   themeToggle.setAttribute('aria-pressed', String(isDark));
   themeToggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
 }
