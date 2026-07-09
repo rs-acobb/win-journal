@@ -365,7 +365,7 @@ function renderPage() {
     div.innerHTML = `
       <div class="entry-head">
         <span class="entry-title">${escapeHtml(e.title || 'Untitled')}</span>
-        <span class="impact-pip">●${e.impact || 3}/5</span>
+        <span class="impact-pip">● ${e.impact || 3}/5</span>
       </div>
       <div class="entry-meta">${(e.date || '').slice(0, 10)} ${tags}</div>
       <div class="entry-body">${escapeHtml(e.body || '')}</div>
